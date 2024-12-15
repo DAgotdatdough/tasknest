@@ -1,0 +1,19 @@
+
+# Virtual environment
+.venv/
+
+# PyCharm IDE files
+.idea/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# SQLite database
+tasknest.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
