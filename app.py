@@ -31,12 +31,30 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 @login_required
 def home():
-    tasks = Task.query.filter_by(user_id=current_user.id).all()
-    categories = ['Work', 'Personal', 'Other']
+    category = request.args.get('category')
+    priority = request.args.get('priority')
+
+    # Start with a query for all tasks for the current user
+    query = Task.query.filter_by(user_id=current_user.id)
+
+    # Apply category filter if a category is selected
+    if category:
+        query = query.filter(Task.category == category)
+
+    # Apply priority filter if a priority is selected
+    if priority:
+        query = query.filter(Task.priority == priority)
+
+    # Fetch filtered tasks
+    tasks = query.all()
+
+    # Define available categories and priorities for filtering dropdowns
+    categories = ['Work', 'Personal', 'Urgent']
     priorities = ['Low', 'Medium', 'High']
+
     return render_template("home.html", tasks=tasks, categories=categories, priorities=priorities)
 
 
