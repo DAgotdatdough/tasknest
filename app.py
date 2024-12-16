@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request
+from flask import Flask, render_template, redirect, url_for, flash, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from models import db, User, Task
 from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, TaskForm
 from config import Config
+from datetime import datetime, timedelta
 
 # Flask app initialization
 app = Flask(__name__)
@@ -31,32 +32,29 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-@app.route("/", methods=["GET"])
+@app.route('/')
 @login_required
 def home():
-    category = request.args.get('category')
-    priority = request.args.get('priority')
+    # Fetch all tasks for the current user
+    tasks = Task.query.filter_by(user_id=current_user.id).all()
 
-    # Start with a query for all tasks for the current user
-    query = Task.query.filter_by(user_id=current_user.id)
+    # Calculate total tasks and completed tasks
+    total_tasks = len(tasks)
+    completed_tasks = sum(1 for task in tasks if task.completed)
 
-    # Apply category filter if a category is selected
-    if category:
-        query = query.filter(Task.category == category)
+    # Calculate progress percentage
+    progress = int((completed_tasks / total_tasks) * 100) if total_tasks > 0 else 0
 
-    # Apply priority filter if a priority is selected
-    if priority:
-        query = query.filter(Task.priority == priority)
+    # Filter tasks for the current week
+    start_of_week = datetime.now() - timedelta(days=datetime.now().weekday())
+    tasks_this_week = [task for task in tasks if task.due_date and datetime.strptime(task.due_date, '%Y-%m-%d') >= start_of_week]
 
-    # Fetch filtered tasks
-    tasks = query.all()
+    total_week_tasks = len(tasks_this_week)
+    completed_week_tasks = sum(1 for task in tasks_this_week if task.completed)
 
-    # Define available categories and priorities for filtering dropdowns
-    categories = ['Work', 'Personal', 'Urgent']
-    priorities = ['Low', 'Medium', 'High']
-
-    return render_template("home.html", tasks=tasks, categories=categories, priorities=priorities)
-
+    return render_template('home.html', tasks=tasks, progress=progress,
+                           total_tasks=total_tasks, completed_tasks=completed_tasks,
+                           total_week_tasks=total_week_tasks, completed_week_tasks=completed_week_tasks)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
