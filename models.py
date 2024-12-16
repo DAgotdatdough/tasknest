@@ -37,8 +37,9 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     name = db.Column(db.String(150), nullable=False)
-    due_date = db.Column(db.String(50), nullable=True)
+    category = db.Column(db.String(50), nullable=True)
     priority = db.Column(db.String(50), nullable=True)
+    due_date = db.Column(db.String(50), nullable=True)
     completed = db.Column(db.Boolean, default=False)
 
     user = db.relationship('User', backref='tasks')

@@ -2,8 +2,9 @@ from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
+from flask_migrate import Migrate
 from models import db, User, Task
-from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm
+from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, TaskForm
 from config import Config
 
 # Flask app initialization
@@ -13,6 +14,9 @@ db.init_app(app)
 
 # Flask-Mail setup
 mail = Mail(app)
+
+# Flask-Migrate setup
+migrate = Migrate(app, db)
 
 # Flask-Login setup
 login_manager = LoginManager(app)
@@ -27,11 +31,14 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
-@app.route('/')
+@app.route("/")
 @login_required
 def home():
     tasks = Task.query.filter_by(user_id=current_user.id).all()
-    return render_template('home.html', tasks=tasks)
+    categories = ['Work', 'Personal', 'Other']
+    priorities = ['Low', 'Medium', 'High']
+    return render_template("home.html", tasks=tasks, categories=categories, priorities=priorities)
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -110,16 +117,30 @@ def reset_password(user_id):
         return redirect(url_for('login'))
     return render_template("reset_password.html", form=form)
 
-@app.route('/add', methods=['POST'])
+@app.route("/add", methods=["POST"])
 @login_required
 def add_task():
     name = request.form.get('name')
-    if name:
-        new_task = Task(name=name, user_id=current_user.id)
-        db.session.add(new_task)
-        db.session.commit()
-        flash('Task added successfully!', 'success')
-    return redirect(url_for('home'))
+    category = request.form.get('category')
+    priority = request.form.get('priority')
+    due_date = request.form.get('due_date')
+
+    if not name or not category or not priority:
+        flash("All fields are required except due date.", "danger")
+        return redirect(url_for("home"))
+
+    task = Task(
+        user_id=current_user.id,
+        name=name,
+        category=category,
+        priority=priority,
+        due_date=due_date,
+        completed=False,
+    )
+    db.session.add(task)
+    db.session.commit()
+    flash("Task added successfully!", "success")
+    return redirect(url_for("home"))
 
 @app.route('/update/<int:task_id>', methods=['POST'])
 @login_required
@@ -143,6 +164,7 @@ def delete_task(task_id):
 
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 

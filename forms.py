@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo, Length
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, SelectField
+from wtforms.validators import DataRequired, Email, EqualTo, Length, DataRequired
 
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=150)])
@@ -24,3 +24,19 @@ class ResetPasswordForm(FlaskForm):
         'Confirm Password', validators=[DataRequired(), EqualTo('password')]
     )
     submit = SubmitField('Reset Password')
+
+class TaskForm(FlaskForm):
+    name = StringField('Task Name', validators=[DataRequired()])
+    category = SelectField(
+        'Category',
+        choices=[('Work', 'Work'), ('Personal', 'Personal'), ('Other', 'Other')],
+        validators=[DataRequired()],
+    )
+    priority = SelectField(
+        'Priority',
+        choices=[('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High')],
+        validators=[DataRequired()],
+    )
+    due_date = StringField('Due Date')  # Optional field for due dates
+    completed = BooleanField('Completed')
+    submit = SubmitField('Add Task')
