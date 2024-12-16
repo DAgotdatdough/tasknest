@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+    <h2>Welcome, {{ current_user.username }}!</h2>
+
+    <!-- Add Task Form -->
+    <form method="POST" action="{{ url_for('add_task') }}">
+        <input type="text" name="name" placeholder="Task Name" required>
+        <button type="submit">Add Task</button>
+    </form>
+
+    <!-- Task List -->
+    <ul>
+        {% for task in tasks %}
+            <li>
+                {{ task.name }}
+                - {% if task.completed %}Completed{% else %}Incomplete{% endif %}
+                <form method="POST" action="{{ url_for('update_task', task_id=task.id) }}" style="display:inline;">
+                    <button type="submit">Toggle</button>
+                </form>
+                <form method="POST" action="{{ url_for('delete_task', task_id=task.id) }}" style="display:inline;">
+                    <button type="submit">Delete</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Delete Account -->
+    <form method="POST" action="{{ url_for('delete_account') }}">
+        <button type="submit" class="btn btn-danger">Delete Account</button>
+    </form>
+{% endblock %}
+
