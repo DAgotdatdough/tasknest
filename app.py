@@ -35,26 +35,58 @@ with app.app_context():
 @app.route('/')
 @login_required
 def home():
-    # Fetch all tasks for the current user
-    tasks = Task.query.filter_by(user_id=current_user.id).all()
+    sort_by = request.args.get("sort_by", None)
+    category_filter = request.args.get("category", None)
 
-    # Calculate total tasks and completed tasks
-    total_tasks = len(tasks)
+    # Start with all tasks for the user
+    tasks_query = Task.query.filter_by(user_id=current_user.id)
+
+    # Apply category filter if selected
+    if category_filter:
+        tasks_query = tasks_query.filter_by(category=category_filter)
+
+    # Apply sorting based on the selected option
+    if sort_by == "due_date":
+        tasks_query = tasks_query.order_by(Task.due_date.asc())
+    elif sort_by == "priority":
+        tasks_query = tasks_query.order_by(Task.priority.asc())
+    elif sort_by == "completed":
+        tasks_query = tasks_query.order_by(Task.completed.asc())
+
+    tasks = tasks_query.all()
+
+    # Progress Calculation
     completed_tasks = sum(1 for task in tasks if task.completed)
+    total_tasks = len(tasks)
+    progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
 
-    # Calculate progress percentage
-    progress = int((completed_tasks / total_tasks) * 100) if total_tasks > 0 else 0
-
-    # Filter tasks for the current week
-    start_of_week = datetime.now() - timedelta(days=datetime.now().weekday())
-    tasks_this_week = [task for task in tasks if task.due_date and datetime.strptime(task.due_date, '%Y-%m-%d') >= start_of_week]
-
+    # Tasks This Week Calculation
+    today = datetime.now().date()
+    start_of_week = today - timedelta(days=today.weekday())  # Monday
+    end_of_week = start_of_week + timedelta(days=6)  # Sunday
+    tasks_this_week = [
+        task for task in tasks
+        if task.due_date and start_of_week <= datetime.strptime(task.due_date, '%Y-%m-%d').date() <= end_of_week
+    ]
     total_week_tasks = len(tasks_this_week)
     completed_week_tasks = sum(1 for task in tasks_this_week if task.completed)
 
-    return render_template('home.html', tasks=tasks, progress=progress,
-                           total_tasks=total_tasks, completed_tasks=completed_tasks,
-                           total_week_tasks=total_week_tasks, completed_week_tasks=completed_week_tasks)
+    categories = ["Work", "Personal", "Urgent"]
+    priorities = ["Low", "Medium", "High"]
+
+    return render_template(
+        "home.html",
+        tasks=tasks,
+        progress=int(progress),
+        categories=categories,
+        priorities=priorities,
+        completed_tasks=completed_tasks,
+        total_tasks=total_tasks,
+        total_week_tasks=total_week_tasks,
+        completed_week_tasks=completed_week_tasks
+    )
+
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

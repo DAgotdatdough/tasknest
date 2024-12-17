@@ -36,22 +36,26 @@
 
     <!-- Filter Form -->
     <form method="GET" action="{{ url_for('home') }}">
-        <select name="category">
+        <!-- Sorting Options -->
+        <label for="sort_by">Sort By:</label>
+        <select name="sort_by" id="sort_by">
+            <option value="" disabled selected>Select an option</option>
+            <option value="due_date" {% if request.args.get('sort_by') == 'due_date' %}selected{% endif %}>Due Date</option>
+            <option value="priority" {% if request.args.get('sort_by') == 'priority' %}selected{% endif %}>Priority</option>
+            <option value="completed" {% if request.args.get('sort_by') == 'completed' %}selected{% endif %}>Completion Status</option>
+        </select>
+
+        <!-- Filter by Category -->
+        <label for="category">Filter by Category:</label>
+        <select name="category" id="category">
             <option value="" selected>All Categories</option>
             {% for cat in categories %}
                 <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
             {% endfor %}
         </select>
-
-        <select name="priority">
-            <option value="" selected>All Priorities</option>
-            {% for pri in priorities %}
-                <option value="{{ pri }}" {% if request.args.get('priority') == pri %}selected{% endif %}>{{ pri }}</option>
-            {% endfor %}
-        </select>
-
-        <button type="submit">Filter</button>
+        <button type="submit">Apply</button>
     </form>
+    <hr>
 
     <!-- Task List -->
     <ul>
@@ -81,5 +85,6 @@
         <button type="submit" class="btn btn-danger">Delete Account</button>
     </form>
 {% endblock %}
+
 
 
