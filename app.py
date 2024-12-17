@@ -1,10 +1,10 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
 from flask_migrate import Migrate
 from models import db, User, Task
-from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, TaskForm
+from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, SettingsForm
 from config import Config
 from datetime import datetime, timedelta
 
@@ -177,6 +177,26 @@ def delete_task(task_id):
         db.session.commit()
         flash('Task deleted successfully!', 'success')
     return redirect(url_for('home'))
+
+@app.route('/settings', methods=["GET", "POST"])
+@login_required
+def set_settings():
+    form = SettingsForm()
+
+    if form.validate_on_submit():
+        current_user.username = form.username.data
+        db.session.commit()
+        flash('Settings updated successfully!', 'success')
+        return redirect(url_for('set_settings'))
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+    return render_template('settings.html', form=form, theme=session.get('theme', 'light'))
+
+@app.route('/toggle_theme')
+@login_required
+def toggle_theme():
+    session['theme'] = 'dark' if session.get('theme') == 'light' else 'light'
+    return redirect(url_for('set_settings'))
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -4,12 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaskNest</title>
+    <style>
+        body.light {
+            background-color: white;
+            color: black;
+        }
+        body.dark {
+            background-color: #333;
+            color: white;
+        }
+
+        nav{
+            margin-bottom: 1rem;
+        }
+
+        a {
+            text-decoration: none;
+            margin-right: 1rem;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin-bottom: 1rem;
+        }
+
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+    </style>
 </head>
-<body>
+<body class="{{ theme}}">
     <h1>TaskNest</h1>
     <nav>
         <a href="{{ url_for('home') }}">Home</a> |
         {% if current_user.is_authenticated %}
+        <a href="{{ url_for('set_settings') }}">Settings</a> |
             <a href="{{ url_for('logout') }}">Logout</a>
         {% else %}
             <a href="{{ url_for('login') }}">Login</a> |
@@ -29,7 +67,8 @@
         {% endif %}
     {% endwith %}
 
-    {% block content %}{% endblock %}
+    {% block content %}
+    {% endblock %}
 </body>
 </html>
 
