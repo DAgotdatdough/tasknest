@@ -6,7 +6,7 @@ from flask_migrate import Migrate
 from models import db, User, Task
 from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, SettingsForm
 from config import Config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 # Flask app initialization
 app = Flask(__name__)
@@ -55,6 +55,11 @@ def home():
 
     tasks = tasks_query.all()
 
+    # Convert task.due_date to datetime.date for comparison
+    for task in tasks:
+        if task.due_date:
+            task.due_date = datetime.strptime(task.due_date, '%Y-%m-%d').date()
+
     # Progress Calculation
     completed_tasks = sum(1 for task in tasks if task.completed)
     total_tasks = len(tasks)
@@ -66,7 +71,7 @@ def home():
     end_of_week = start_of_week + timedelta(days=6)  # Sunday
     tasks_this_week = [
         task for task in tasks
-        if task.due_date and start_of_week <= datetime.strptime(task.due_date, '%Y-%m-%d').date() <= end_of_week
+        if task.due_date and start_of_week <= task.due_date <= end_of_week
     ]
     total_week_tasks = len(tasks_this_week)
     completed_week_tasks = sum(1 for task in tasks_this_week if task.completed)
@@ -83,9 +88,9 @@ def home():
         completed_tasks=completed_tasks,
         total_tasks=total_tasks,
         total_week_tasks=total_week_tasks,
-        completed_week_tasks=completed_week_tasks
+        completed_week_tasks=completed_week_tasks,
+        today=today  # Pass 'today' to template
     )
-
 
 
 @app.route('/register', methods=['GET', 'POST'])

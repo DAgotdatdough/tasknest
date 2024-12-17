@@ -57,28 +57,50 @@
     </form>
     <hr>
 
+<!-- Task Notifications -->
+{% if tasks_due_today %}
+    <h3 style="color: #ff9800;">Tasks Due Today</h3>
+    <ul>
+        {% for task in tasks_due_today %}
+            <li>{{ task.name }} - Due Date: {{ task.due_date }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{% if overdue_tasks %}
+    <h3 style="color: red;">Overdue Tasks</h3>
+    <ul>
+        {% for task in overdue_tasks %}
+            <li style="color: red;">
+                {{ task.name }} - Due Date: {{ task.due_date }}
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
     <!-- Task List -->
     <ul>
-        {% if tasks %}
-            {% for task in tasks %}
-                <li>
-                    <strong>Name:</strong> {{ task.name }} <br>
-                    <strong>Category:</strong> {{ task.category }} <br>
-                    <strong>Priority:</strong> {{ task.priority }} <br>
-                    <strong>Due Date:</strong> {{ task.due_date or 'No due date' }} <br>
-                    <strong>Status:</strong> {% if task.completed %}Completed{% else %}Incomplete{% endif %}
-                    <form method="POST" action="{{ url_for('update_task', task_id=task.id) }}" style="display:inline;">
-                        <button type="submit">Toggle</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('delete_task', task_id=task.id) }}" style="display:inline;">
-                        <button type="submit">Delete</button>
-                    </form>
-                </li>
-            {% endfor %}
-        {% else %}
-            <li>No tasks available.</li>
-        {% endif %}
-    </ul>
+    {% if tasks %}
+        {% for task in tasks %}
+            <li style="color:
+                {% if task.completed %}green{% elif task.due_date and task.due_date < today %}red{% else %}black{% endif %};">
+                <strong>Name:</strong> {{ task.name }} <br>
+                <strong>Category:</strong> {{ task.category }} <br>
+                <strong>Priority:</strong> {{ task.priority }} <br>
+                <strong>Due Date:</strong> {{ task.due_date or 'No due date' }} <br>
+                <strong>Status:</strong> {% if task.completed %}Completed{% else %}Incomplete{% endif %}
+                <form method="POST" action="{{ url_for('update_task', task_id=task.id) }}" style="display:inline;">
+                    <button type="submit">Toggle</button>
+                </form>
+                <form method="POST" action="{{ url_for('delete_task', task_id=task.id) }}" style="display:inline;">
+                    <button type="submit">Delete</button>
+                </form>
+            </li>
+        {% endfor %}
+    {% else %}
+        <li>No tasks available.</li>
+    {% endif %}
+</ul>
 
     <!-- Delete Account -->
     <form method="POST" action="{{ url_for('delete_account') }}">
