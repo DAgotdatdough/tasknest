@@ -2,6 +2,11 @@
 {% block content %}
 <h2>Tasks</h2>
 
+<!-- Notification Banners -->
+<div id="notifications">
+    <!-- Banners will appear here -->
+</div>
+
 <!-- Add Task Form -->
 <form method="POST" action="{{ url_for('add_task') }}">
     <input type="text" name="name" placeholder="Task Name" required>
@@ -68,5 +73,42 @@
 </li>
     {% endfor %}
 </ul>
+<!-- Script for In-App Notifications -->
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+    try {
+        const response = await fetch("/api/notifications");
+        const data = await response.json();
+
+        const notificationDiv = document.getElementById("notifications");
+
+        // Add banners for overdue tasks
+        data.overdue_tasks.forEach(task => {
+            const banner = document.createElement("div");
+            banner.style.backgroundColor = "#ffcccc";
+            banner.style.color = "red";
+            banner.style.padding = "10px";
+            banner.style.marginBottom = "10px";
+            banner.style.border = "1px solid red";
+            banner.innerHTML = `<strong>Overdue Task:</strong> ${task.name} (Due: ${task.due_date})`;
+            notificationDiv.appendChild(banner);
+        });
+
+        // Add banners for upcoming tasks
+        data.upcoming_tasks.forEach(task => {
+            const banner = document.createElement("div");
+            banner.style.backgroundColor = "#ccffcc";
+            banner.style.color = "green";
+            banner.style.padding = "10px";
+            banner.style.marginBottom = "10px";
+            banner.style.border = "1px solid green";
+            banner.innerHTML = `<strong>Upcoming Task:</strong> ${task.name} (Due: ${task.due_date})`;
+            notificationDiv.appendChild(banner);
+        });
+    } catch (error) {
+        console.error("Error fetching notifications:", error);
+    }
+});
+</script>
 {% endblock %}
 

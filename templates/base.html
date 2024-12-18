@@ -70,6 +70,46 @@
 
     {% block content %}
     {% endblock %}
+
+
+<!-- Notifications Script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Request notification permission
+            if (Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+
+            // Fetch notifications every minute
+            setInterval(checkTasks, 60000);
+            checkTasks();  // Run on page load
+
+            function showNotification(title, message) {
+                if (Notification.permission === "granted") {
+                    new Notification(title, { body: message });
+                }
+            }
+
+            async function checkTasks() {
+                try {
+                    const response = await fetch("/api/notifications");
+                    const data = await response.json();
+
+                    // Show notifications for overdue tasks
+                    data.overdue_tasks.forEach(task => {
+                        showNotification("Overdue Task", `${task.name} was due on ${task.due_date}`);
+                    });
+
+                    // Show notifications for upcoming tasks
+                    data.upcoming_tasks.forEach(task => {
+                        showNotification("Upcoming Task", `${task.name} is due on ${task.due_date}`);
+                    });
+                } catch (error) {
+                    console.error("Error fetching notifications:", error);
+                }
+            }
+        });
+    </script>
 </body>
 </html>
 

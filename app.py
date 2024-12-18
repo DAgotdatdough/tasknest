@@ -1,12 +1,12 @@
 from flask import Flask, render_template, redirect, url_for, request, flash, session
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_mail import Mail, Message
+from flask_mail import Mail
 from flask_migrate import Migrate
 from models import db, User, Task
 from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, SettingsForm
 from config import Config
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
+from flask import jsonify
 
 # Flask app initialization
 app = Flask(__name__)
@@ -23,19 +23,22 @@ migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
 
 # Initialize the database
 with app.app_context():
     db.create_all()
 
+
 @app.route('/')
 @login_required
 def dashboard():
     # Fetch all tasks for the current user
-    tasks = Task.query.filter_by(user_id=current_user.id).all()
+    tasks_query = Task.query.filter_by(user_id=current_user.id).all()
 
     # Number of tasks completed per week/month
     today = datetime.now().date()
@@ -44,21 +47,22 @@ def dashboard():
     start_of_month = today.replace(day=1)
 
     completed_this_week = sum(
-        1 for task in tasks
-        if task.completed and task.due_date and start_of_week <= datetime.strptime(task.due_date, '%Y-%m-%d').date() <= end_of_week
+        1 for task in tasks_query
+        if task.completed and task.due_date and start_of_week <= datetime.strptime(task.due_date, '%Y-%m-%d').date()
+        <= end_of_week
     )
     completed_this_month = sum(
-        1 for task in tasks
+        1 for task in tasks_query
         if task.completed and task.due_date and start_of_month <= datetime.strptime(task.due_date, '%Y-%m-%d').date()
     )
 
     # Task categories for pie chart
     categories = ["Work", "Personal", "Urgent"]
-    category_counts = {category: sum(1 for task in tasks if task.category == category) for category in categories}
+    category_counts = {category: sum(1 for task in tasks_query if task.category == category) for category in categories}
 
     # Progress calculation
-    total_tasks = len(tasks)
-    completed_tasks = sum(1 for task in tasks if task.completed)
+    total_tasks = len(tasks_query)
+    completed_tasks = sum(1 for task in tasks_query if task.completed)
     progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
 
     return render_template(
@@ -91,10 +95,10 @@ def tasks():
     elif sort_by == "completed":
         tasks_query = tasks_query.order_by(Task.completed.asc())
 
-    tasks = tasks_query.all()
+    user_tasks = tasks_query.all()
 
     # Convert task.due_date to datetime.date if it exists
-    for task in tasks:
+    for task in user_tasks:
         if task.due_date:
             task.due_date = datetime.strptime(task.due_date, '%Y-%m-%d').date()
 
@@ -103,11 +107,10 @@ def tasks():
     current_date = datetime.now().date()
 
     return render_template('tasks.html',
-                           tasks=tasks,
+                           tasks=user_tasks,
                            categories=categories,
                            priorities=priorities,
                            current_date=current_date)
-
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -143,12 +146,14 @@ def login():
             flash('Invalid email or password.', 'danger')
     return render_template('login.html', form=form)
 
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
 
 @app.route('/delete_account', methods=['POST'])
 @login_required
@@ -159,6 +164,7 @@ def delete_account():
     db.session.commit()
     flash('Your account has been deleted.', 'success')
     return redirect(url_for('register'))
+
 
 @app.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
@@ -171,6 +177,7 @@ def forgot_password():
         else:
             flash("No user found with this email.", "danger")
     return render_template("forgot_password.html", form=form)
+
 
 @app.route("/reset_password/<int:user_id>", methods=["GET", "POST"])
 def reset_password(user_id):
@@ -187,6 +194,7 @@ def reset_password(user_id):
         return redirect(url_for('login'))
     return render_template("reset_password.html", form=form)
 
+
 @app.route('/update/<int:task_id>', methods=['POST'])
 @login_required
 def update_task(task_id):
@@ -197,6 +205,7 @@ def update_task(task_id):
         flash('Task updated successfully!', 'success')
     return redirect(url_for('tasks'))
 
+
 @app.route('/delete/<int:task_id>', methods=['POST'])
 @login_required
 def delete_task(task_id):
@@ -206,6 +215,7 @@ def delete_task(task_id):
         db.session.commit()
         flash('Task deleted successfully!', 'success')
     return redirect(url_for('tasks'))
+
 
 @app.route('/settings', methods=["GET", "POST"])
 @login_required
@@ -221,11 +231,13 @@ def set_settings():
         form.username.data = current_user.username
     return render_template('settings.html', form=form, theme=session.get('theme', 'light'))
 
+
 @app.route('/toggle_theme')
 @login_required
 def toggle_theme():
     session['theme'] = 'dark' if session.get('theme') == 'light' else 'light'
     return redirect(url_for('set_settings'))
+
 
 @app.route('/add_task', methods=['POST'])
 @login_required
@@ -253,14 +265,29 @@ def add_task():
     return redirect(url_for("tasks"))
 
 
+@app.route('/api/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    # Fetch all tasks for the current user
+    tasks = Task.query.filter_by(user_id=current_user.id).all()
+
+    today = datetime.now().date()
+    upcoming_tasks = []
+    overdue_tasks = []
+
+    for task in tasks:
+        if task.due_date and not task.completed:
+            due_date = datetime.strptime(task.due_date, '%Y-%m-%d').date()
+            if due_date < today:
+                overdue_tasks.append({"name": task.name, "due_date": task.due_date})
+            elif 0 <= (due_date - today).days <= 1:  # Tasks due in the next 1 day
+                upcoming_tasks.append({"name": task.name, "due_date": task.due_date})
+
+    return jsonify({
+        "overdue_tasks": overdue_tasks,
+        "upcoming_tasks": upcoming_tasks
+    })
+
+
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
-
-
-
