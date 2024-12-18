@@ -45,7 +45,8 @@
 <body class="{{ theme}}">
     <h1>TaskNest</h1>
     <nav>
-        <a href="{{ url_for('home') }}">Home</a> |
+        <a href="{{ url_for('dashboard') }}">Dashboard</a> |
+        <a href="{{ url_for('tasks') }}">Tasks</a> |
         {% if current_user.is_authenticated %}
         <a href="{{ url_for('set_settings') }}">Settings</a> |
             <a href="{{ url_for('logout') }}">Logout</a>

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Tasks</h2>
+
+<!-- Add Task Form -->
+<form method="POST" action="{{ url_for('add_task') }}">
+    <input type="text" name="name" placeholder="Task Name" required>
+    <select name="category" required>
+        <option value="" disabled selected>Select Category</option>
+        {% for cat in categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}
+    </select>
+    <select name="priority" required>
+        <option value="" disabled selected>Select Priority</option>
+        {% for pri in priorities %}
+            <option value="{{ pri }}">{{ pri }}</option>
+        {% endfor %}
+    </select>
+    <input type="date" name="due_date">
+    <button type="submit">Add Task</button>
+</form>
+
+<!-- Filter and Sort Form -->
+<form method="GET" action="{{ url_for('tasks') }}">
+    <label for="sort_by">Sort By:</label>
+    <select name="sort_by" id="sort_by">
+        <option value="" disabled selected>Select an option</option>
+        <option value="due_date" {% if request.args.get('sort_by') == 'due_date' %}selected{% endif %}>Due Date</option>
+        <option value="priority" {% if request.args.get('sort_by') == 'priority' %}selected{% endif %}>Priority</option>
+        <option value="completed" {% if request.args.get('sort_by') == 'completed' %}selected{% endif %}>Completion Status</option>
+    </select>
+
+    <label for="category">Filter by Category:</label>
+    <select name="category" id="category">
+        <option value="" selected>All Categories</option>
+        {% for cat in categories %}
+            <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Apply</button>
+</form>
+
+<!-- Task List -->
+<h3>Your Tasks</h3>
+<ul>
+    {% for task in tasks %}
+        <li style="color:
+    {% if task.completed %}
+        green
+    {% elif task.due_date and task.due_date < current_date %}
+        red
+    {% else %}
+        black
+    {% endif %};">
+    <strong>Name:</strong> {{ task.name }}<br>
+    <strong>Category:</strong> {{ task.category }}<br>
+    <strong>Priority:</strong> {{ task.priority }}<br>
+    <strong>Due Date:</strong> {{ task.due_date or 'No due date' }}<br>
+    <strong>Status:</strong>
+    {% if task.completed %}Completed{% else %}Incomplete{% endif %}
+    <form method="POST" action="{{ url_for('update_task', task_id=task.id) }}" style="display:inline;">
+        <button type="submit">Toggle</button>
+    </form>
+    <form method="POST" action="{{ url_for('delete_task', task_id=task.id) }}" style="display:inline;">
+        <button type="submit">Delete</button>
+    </form>
+</li>
+    {% endfor %}
+</ul>
+{% endblock %}
+

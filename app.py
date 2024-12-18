@@ -27,14 +27,52 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
-
 # Initialize the database
 with app.app_context():
     db.create_all()
 
 @app.route('/')
 @login_required
-def home():
+def dashboard():
+    # Fetch all tasks for the current user
+    tasks = Task.query.filter_by(user_id=current_user.id).all()
+
+    # Number of tasks completed per week/month
+    today = datetime.now().date()
+    start_of_week = today - timedelta(days=today.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    start_of_month = today.replace(day=1)
+
+    completed_this_week = sum(
+        1 for task in tasks
+        if task.completed and task.due_date and start_of_week <= datetime.strptime(task.due_date, '%Y-%m-%d').date() <= end_of_week
+    )
+    completed_this_month = sum(
+        1 for task in tasks
+        if task.completed and task.due_date and start_of_month <= datetime.strptime(task.due_date, '%Y-%m-%d').date()
+    )
+
+    # Task categories for pie chart
+    categories = ["Work", "Personal", "Urgent"]
+    category_counts = {category: sum(1 for task in tasks if task.category == category) for category in categories}
+
+    # Progress calculation
+    total_tasks = len(tasks)
+    completed_tasks = sum(1 for task in tasks if task.completed)
+    progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+
+    return render_template(
+        'dashboard.html',
+        completed_this_week=completed_this_week,
+        completed_this_month=completed_this_month,
+        category_counts=category_counts,
+        progress=int(progress)
+    )
+
+
+@app.route('/tasks', methods=['GET', 'POST'])
+@login_required
+def tasks():
     sort_by = request.args.get("sort_by", None)
     category_filter = request.args.get("category", None)
 
@@ -45,7 +83,7 @@ def home():
     if category_filter:
         tasks_query = tasks_query.filter_by(category=category_filter)
 
-    # Apply sorting based on the selected option
+    # Apply sorting
     if sort_by == "due_date":
         tasks_query = tasks_query.order_by(Task.due_date.asc())
     elif sort_by == "priority":
@@ -55,42 +93,21 @@ def home():
 
     tasks = tasks_query.all()
 
-    # Convert task.due_date to datetime.date for comparison
+    # Convert task.due_date to datetime.date if it exists
     for task in tasks:
         if task.due_date:
             task.due_date = datetime.strptime(task.due_date, '%Y-%m-%d').date()
 
-    # Progress Calculation
-    completed_tasks = sum(1 for task in tasks if task.completed)
-    total_tasks = len(tasks)
-    progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
-
-    # Tasks This Week Calculation
-    today = datetime.now().date()
-    start_of_week = today - timedelta(days=today.weekday())  # Monday
-    end_of_week = start_of_week + timedelta(days=6)  # Sunday
-    tasks_this_week = [
-        task for task in tasks
-        if task.due_date and start_of_week <= task.due_date <= end_of_week
-    ]
-    total_week_tasks = len(tasks_this_week)
-    completed_week_tasks = sum(1 for task in tasks_this_week if task.completed)
-
     categories = ["Work", "Personal", "Urgent"]
     priorities = ["Low", "Medium", "High"]
+    current_date = datetime.now().date()
 
-    return render_template(
-        "home.html",
-        tasks=tasks,
-        progress=int(progress),
-        categories=categories,
-        priorities=priorities,
-        completed_tasks=completed_tasks,
-        total_tasks=total_tasks,
-        total_week_tasks=total_week_tasks,
-        completed_week_tasks=completed_week_tasks,
-        today=today  # Pass 'today' to template
-    )
+    return render_template('tasks.html',
+                           tasks=tasks,
+                           categories=categories,
+                           priorities=priorities,
+                           current_date=current_date)
+
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -121,7 +138,7 @@ def login():
             login_user(user)
             flash('Login successful!', 'success')
             next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('home'))
+            return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
             flash('Invalid email or password.', 'danger')
     return render_template('login.html', form=form)
@@ -170,31 +187,6 @@ def reset_password(user_id):
         return redirect(url_for('login'))
     return render_template("reset_password.html", form=form)
 
-@app.route("/add", methods=["POST"])
-@login_required
-def add_task():
-    name = request.form.get('name')
-    category = request.form.get('category')
-    priority = request.form.get('priority')
-    due_date = request.form.get('due_date')
-
-    if not name or not category or not priority:
-        flash("All fields are required except due date.", "danger")
-        return redirect(url_for("home"))
-
-    task = Task(
-        user_id=current_user.id,
-        name=name,
-        category=category,
-        priority=priority,
-        due_date=due_date,
-        completed=False,
-    )
-    db.session.add(task)
-    db.session.commit()
-    flash("Task added successfully!", "success")
-    return redirect(url_for("home"))
-
 @app.route('/update/<int:task_id>', methods=['POST'])
 @login_required
 def update_task(task_id):
@@ -203,7 +195,7 @@ def update_task(task_id):
         task.completed = not task.completed
         db.session.commit()
         flash('Task updated successfully!', 'success')
-    return redirect(url_for('home'))
+    return redirect(url_for('tasks'))
 
 @app.route('/delete/<int:task_id>', methods=['POST'])
 @login_required
@@ -213,7 +205,7 @@ def delete_task(task_id):
         db.session.delete(task)
         db.session.commit()
         flash('Task deleted successfully!', 'success')
-    return redirect(url_for('home'))
+    return redirect(url_for('tasks'))
 
 @app.route('/settings', methods=["GET", "POST"])
 @login_required
@@ -234,6 +226,32 @@ def set_settings():
 def toggle_theme():
     session['theme'] = 'dark' if session.get('theme') == 'light' else 'light'
     return redirect(url_for('set_settings'))
+
+@app.route('/add_task', methods=['POST'])
+@login_required
+def add_task():
+    name = request.form.get('name')
+    category = request.form.get('category')
+    priority = request.form.get('priority')
+    due_date = request.form.get('due_date')
+
+    if not name or not category or not priority:
+        flash("All fields are required except due date.", "danger")
+        return redirect(url_for("tasks"))
+
+    task = Task(
+        user_id=current_user.id,
+        name=name,
+        category=category,
+        priority=priority,
+        due_date=due_date,
+        completed=False,
+    )
+    db.session.add(task)
+    db.session.commit()
+    flash("Task added successfully!", "success")
+    return redirect(url_for("tasks"))
+
 
 if __name__ == "__main__":
     app.run(debug=True)

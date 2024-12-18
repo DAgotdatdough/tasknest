@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+
+<!-- Task Completion Overview -->
+<h3>Tasks Completed</h3>
+<p>This Week: {{ completed_this_week }}</p>
+<p>This Month: {{ completed_this_month }}</p>
+
+<!-- Task Category Pie Chart -->
+<h3>Task Categories</h3>
+<canvas id="categoryChart" width="400" height="400"></canvas>
+
+<!-- Overall Progress -->
+<h3>Overall Progress</h3>
+<div style="width: 100%; background-color: #ddd; border-radius: 5px; margin: 10px 0;">
+    <div style="width: {{ progress }}%; background-color: #4caf50; color: white; text-align: center;
+                padding: 5px 0; border-radius: 5px;">
+        {{ progress }}%
+    </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('categoryChart').getContext('2d');
+    const categoryChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: {{ category_counts.keys()|list|tojson }},
+            datasets: [{
+                data: {{ category_counts.values()|list|tojson }},
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
