@@ -100,6 +100,104 @@
         </li>
     {% endfor %}
 </ul>
+
+<script>
+// Function to store tasks in localStorage
+function storeTasks(tasks) {
+    localStorage.setItem('offlineTasks', JSON.stringify(tasks));
+}
+
+// Function to get tasks from localStorage
+function getOfflineTasks() {
+    const tasks = localStorage.getItem('offlineTasks');
+    return tasks ? JSON.parse(tasks) : [];
+}
+
+// Function to add task offline
+function addOfflineTask(taskData) {
+    const tasks = getOfflineTasks();
+    taskData.offline = true;  // Mark as offline task
+    taskData.tempId = Date.now();  // Temporary ID for offline tasks
+    tasks.push(taskData);
+    storeTasks(tasks);
+    displayOfflineTasks();
+}
+
+// Function to display offline tasks
+function displayOfflineTasks() {
+    const offlineTasks = getOfflineTasks();
+    const taskList = document.querySelector('ul');
+
+    offlineTasks.forEach(task => {
+        if (task.offline) {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <li style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background-color: #fff3cd;">
+                    <strong>Name:</strong> ${task.name}<br>
+                    <strong>Category:</strong> ${task.category}<br>
+                    <strong>Priority:</strong> ${task.priority}<br>
+                    <strong>Due Date:</strong> ${task.due_date || 'No due date'}<br>
+                    <strong>Status:</strong> <span style="color: orange;">Offline - Pending Sync</span><br>
+                </li>
+            `;
+            taskList.appendChild(li);
+        }
+    });
+}
+
+// Modify the form submission to handle offline state
+document.querySelector('form[action="{{ url_for("add_task") }}"]').addEventListener('submit', function(e) {
+    if (!navigator.onLine) {
+        e.preventDefault(); // Prevent form submission
+
+        const formData = {
+            name: this.querySelector('input[name="name"]').value,
+            category: this.querySelector('select[name="category"]').value,
+            priority: this.querySelector('select[name="priority"]').value,
+            due_date: this.querySelector('input[name="due_date"]').value,
+        };
+
+        addOfflineTask(formData);
+        this.reset();
+        return false;
+    }
+});
+
+// Sync offline tasks when coming back online
+window.addEventListener('online', async function() {
+    const offlineTasks = getOfflineTasks();
+    const tasksToSync = offlineTasks.filter(task => task.offline);
+
+    for (const task of tasksToSync) {
+        try {
+            const response = await fetch('/add_task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(task)
+            });
+
+            if (response.ok) {
+                // Remove synced task from offline storage
+                const remainingTasks = offlineTasks.filter(t => t.tempId !== task.tempId);
+                storeTasks(remainingTasks);
+            }
+        } catch (error) {
+            console.error('Error syncing task:', error);
+        }
+    }
+
+    // Refresh the page to show updated tasks
+    window.location.reload();
+});
+
+// Initial load of offline tasks
+document.addEventListener('DOMContentLoaded', function() {
+    displayOfflineTasks();
+});
+</script>
+
 {% endblock %}
 
 

@@ -259,12 +259,21 @@ def toggle_theme():
 @app.route('/add_task', methods=['POST'])
 @login_required
 def add_task():
-    name = request.form.get('name')
-    category = request.form.get('category')
-    priority = request.form.get('priority')
-    due_date = request.form.get('due_date')
+    if request.is_json:
+        data = request.get_json()
+        name = data.get('name')
+        category = data.get('category')
+        priority = data.get('priority')
+        due_date = data.get('due_date')
+    else:
+        name = request.form.get('name')
+        category = request.form.get('category')
+        priority = request.form.get('priority')
+        due_date = request.form.get('due_date')
 
     if not name or not category or not priority:
+        if request.is_json:
+            return jsonify({"error": "All fields are required except due date."}), 400
         flash("All fields are required except due date.", "danger")
         return redirect(url_for("tasks"))
 
@@ -278,6 +287,10 @@ def add_task():
     )
     db.session.add(task)
     db.session.commit()
+
+    if request.is_json:
+        return jsonify({"message": "Task added successfully!"}), 200
+
     flash("Task added successfully!", "success")
     return redirect(url_for("tasks"))
 
