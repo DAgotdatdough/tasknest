@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, SelectField
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, SelectField, TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
+
 
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=150)])
@@ -9,14 +10,17 @@ class RegistrationForm(FlaskForm):
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Register')
 
+
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
+
 class ForgotPasswordForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     submit = SubmitField('Submit')
+
 
 class ResetPasswordForm(FlaskForm):
     password = PasswordField('New Password', validators=[DataRequired()])
@@ -24,6 +28,7 @@ class ResetPasswordForm(FlaskForm):
         'Confirm Password', validators=[DataRequired(), EqualTo('password')]
     )
     submit = SubmitField('Reset Password')
+
 
 class TaskForm(FlaskForm):
     name = StringField('Task Name', validators=[DataRequired()])
@@ -41,6 +46,12 @@ class TaskForm(FlaskForm):
     completed = BooleanField('Completed')
     submit = SubmitField('Add Task')
 
+
 class SettingsForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     submit = SubmitField('Update Profile')
+
+
+class CommentForm(FlaskForm):
+    content = TextAreaField('Add a comment', validators=[DataRequired()])
+    submit = SubmitField('Post Comment')

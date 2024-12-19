@@ -2,8 +2,8 @@ from flask import Flask, render_template, redirect, url_for, request, flash, ses
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail
 from flask_migrate import Migrate
-from models import db, User, Task
-from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, SettingsForm
+from models import db, User, Task, Comment
+from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, SettingsForm, CommentForm
 from config import Config
 from datetime import datetime, timedelta
 from flask import jsonify
@@ -77,11 +77,16 @@ def dashboard():
 @app.route('/tasks', methods=['GET', 'POST'])
 @login_required
 def tasks():
+    search_query = request.args.get("search", "")
     sort_by = request.args.get("sort_by", None)
     category_filter = request.args.get("category", None)
 
     # Start with all tasks for the user
     tasks_query = Task.query.filter_by(user_id=current_user.id)
+
+    # Filter by search query if provided
+    if search_query:
+        tasks_query = tasks_query.filter(Task.name.ilike(f"%{search_query}%"))
 
     # Apply category filter if selected
     if category_filter:
@@ -97,20 +102,32 @@ def tasks():
 
     user_tasks = tasks_query.all()
 
-    # Convert task.due_date to datetime.date if it exists
-    for task in user_tasks:
-        if task.due_date:
-            task.due_date = datetime.strptime(task.due_date, '%Y-%m-%d').date()
+    # Clear duplicate logic
+    today = datetime.now().date()
+    overdue_tasks = [
+        task for task in user_tasks
+        if task.due_date and not task.completed and datetime.strptime(task.due_date, '%Y-%m-%d').date() < today
+    ]
+    upcoming_tasks = [
+        task for task in user_tasks
+        if task.due_date and not task.completed and 0 <= (datetime.strptime(task.due_date, '%Y-%m-%d').date() - today).days <= 1
+    ]
+
+    # Ensure unique task IDs for rendering
+    overdue_tasks = list({task.id: task for task in overdue_tasks}.values())
+    upcoming_tasks = list({task.id: task for task in upcoming_tasks}.values())
 
     categories = ["Work", "Personal", "Urgent"]
     priorities = ["Low", "Medium", "High"]
-    current_date = datetime.now().date()
 
-    return render_template('tasks.html',
-                           tasks=user_tasks,
-                           categories=categories,
-                           priorities=priorities,
-                           current_date=current_date)
+    return render_template(
+        'tasks.html',
+        tasks=user_tasks,
+        overdue_tasks=overdue_tasks,
+        upcoming_tasks=upcoming_tasks,
+        categories=categories,
+        priorities=priorities,
+    )
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -287,6 +304,36 @@ def get_notifications():
         "overdue_tasks": overdue_tasks,
         "upcoming_tasks": upcoming_tasks
     })
+
+
+@app.route('/task/<int:task_id>/comment', methods=['POST'])
+@login_required
+def add_comment(task_id):
+    task = Task.query.get_or_404(task_id)
+    if task.user_id != current_user.id:
+        flash('You do not have permission to comment on this task.', 'danger')
+        return redirect(url_for('tasks'))
+
+    form = CommentForm()
+    if form.validate_on_submit():
+        new_comment = Comment(task_id=task_id, content=form.content.data)
+        db.session.add(new_comment)
+        db.session.commit()
+        flash('Comment added successfully!', 'success')
+    return redirect(url_for('task_details', task_id=task_id))
+
+@app.route('/task/<int:task_id>')
+@login_required
+def task_details(task_id):
+    task = Task.query.get_or_404(task_id)
+    if task.user_id != current_user.id:
+        flash('You do not have permission to view this task.', 'danger')
+        return redirect(url_for('tasks'))
+
+    form = CommentForm()
+    comments = Comment.query.filter_by(task_id=task.id).order_by(Comment.created_at.desc()).all()
+    return render_template('task_details.html', task=task, form=form, comments=comments)
+
 
 
 if __name__ == "__main__":

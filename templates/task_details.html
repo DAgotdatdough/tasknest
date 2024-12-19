@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Task: {{ task.name }}</h2>
+<p><strong>Category:</strong> {{ task.category }}</p>
+<p><strong>Priority:</strong> {{ task.priority }}</p>
+<p><strong>Due Date:</strong> {{ task.due_date or 'No due date' }}</p>
+<p><strong>Status:</strong> {% if task.completed %}Completed{% else %}Incomplete{% endif %}</p>
+
+<hr>
+
+<!-- Comments Section -->
+<h3>Comments</h3>
+<ul>
+    {% for comment in comments %}
+        <li>
+            <p>{{ comment.content }}</p>
+            <small>Posted on {{ comment.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+        </li>
+    {% endfor %}
+</ul>
+
+<!-- Add Comment Form -->
+<h3>Add a Comment</h3>
+<form method="POST" action="{{ url_for('add_comment', task_id=task.id) }}">
+    {{ form.hidden_tag() }}
+    {{ form.content(rows=3, class="form-control") }}
+    {{ form.submit(class="btn btn-primary mt-2") }}
+</form>
+
+<a href="{{ url_for('tasks') }}" class="btn btn-secondary mt-2">Back to Tasks</a>
+{% endblock %}
+
+
