@@ -252,8 +252,10 @@ def set_settings():
 @app.route('/toggle_theme')
 @login_required
 def toggle_theme():
-    session['theme'] = 'dark' if session.get('theme') == 'light' else 'light'
-    return redirect(url_for('set_settings'))
+    current_theme = session.get('theme', 'light')
+    new_theme = 'dark' if current_theme == 'light' else 'light'
+    session['theme'] = new_theme
+    return jsonify({'theme': new_theme})
 
 
 @app.route('/add_task', methods=['POST'])

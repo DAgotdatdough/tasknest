@@ -3,28 +3,52 @@
     <h2>Settings</h2>
 
     <!-- Update Profile Form -->
-    <form method="POST" action="{{ url_for('set_settings') }}">
-        {{ form.hidden_tag() }}
-        <div>
-            <label>Username</label>
-            {{ form.username(class="form-control") }}
-        </div>
-        <button type="submit">Update Profile</button>
-    </form>
+    <div class="settings-section">
+        <form method="POST" action="{{ url_for('set_settings') }}">
+            {{ form.hidden_tag() }}
+            <div>
+                <label>Username</label>
+                {{ form.username(class="form-control") }}
+            </div>
+            <button type="submit">Update Profile</button>
+        </form>
+    </div>
 
     <hr>
 
     <!-- Night/Light Mode Toggle -->
-    <form action="{{ url_for('toggle_theme') }}" method="GET">
-        <button type="submit">
-            Toggle {{ 'Night' if theme == 'light' else 'Light' }} Mode
+    <div class="settings-section">
+        <h3>Theme Preferences</h3>
+        <button onclick="toggleTheme()" type="button">
+            Toggle <span id="theme-text">{{ 'Night' if theme == 'light' else 'Light' }}</span> Mode
         </button>
-    </form>
+    </div>
 
     <hr>
 
     <!-- Delete Account -->
-    <form method="POST" action="{{ url_for('delete_account') }}">
-        <button type="submit" class="btn btn-danger">Delete Account</button>
-    </form>
+    <div class="settings-section danger-zone">
+        <h3>Danger Zone</h3>
+        <form method="POST" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Are you sure? This cannot be undone.');">
+            <button type="submit" class="btn-danger">Delete Account</button>
+        </form>
+    </div>
+
+    <<script>
+async function toggleTheme() {
+    try {
+        const response = await fetch("{{ url_for('toggle_theme') }}");
+        const data = await response.json();
+
+        // Update the data-bs-theme attribute on body
+        document.body.setAttribute('data-bs-theme', data.theme);
+
+        // Update button text
+        const themeText = document.getElementById('theme-text');
+        themeText.textContent = data.theme === 'light' ? 'Night' : 'Light';
+    } catch (error) {
+        console.error('Error toggling theme:', error);
+    }
+}
+</script>
 {% endblock %}
