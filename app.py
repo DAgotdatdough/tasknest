@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, session
+from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail
 from flask_migrate import Migrate
@@ -6,12 +6,7 @@ from models import db, User, Task, Comment
 from forms import RegistrationForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, SettingsForm, CommentForm
 from config import Config
 from datetime import datetime, timedelta
-from flask import jsonify
 import os
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
 
 # Flask app initialization
 app = Flask(__name__)
@@ -355,6 +350,9 @@ def task_details(task_id):
     return render_template('task_details.html', task=task, form=form, comments=comments)
 
 
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
 
 if __name__ == "__main__":
     app.run(debug=True)
