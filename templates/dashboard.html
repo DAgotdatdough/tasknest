@@ -21,12 +21,15 @@
 </div>
 
 <!-- Include Chart.js -->
+<!-- External JavaScript library for rendering the pie chart -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+     // JavaScript for creating and configuring the pie chart
     const ctx = document.getElementById('categoryChart').getContext('2d');
     const categoryChart = new Chart(ctx, {
         type: 'pie',
         data: {
+             // Dynamically populate labels for the pie chart using Flask template variables
             labels: {{ category_counts.keys()|list|tojson }},
             datasets: [{
                 data: {{ category_counts.values()|list|tojson }},

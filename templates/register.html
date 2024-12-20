@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
     <h2>Register</h2>
+<!-- Registration form for new users -->
     <form method="POST">
         {{ form.hidden_tag() }}
         <p>{{ form.username.label }} {{ form.username }}</p>
