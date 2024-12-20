@@ -2,6 +2,9 @@
 {% block content %}
 <h2>Dashboard</h2>
 
+<!-- Welcome Message -->
+<h3>Welcome {{ current_user.username }}!</h3>
+
 <!-- Task Completion Overview -->
 <h3>Tasks Completed</h3>
 <p>This Week: {{ completed_this_week }}</p>
