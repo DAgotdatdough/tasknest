@@ -13,10 +13,8 @@ app = Flask(__name__)
 app.config.from_object(Config)
 db.init_app(app)
 
-# Flask-Mail setup
+# Setup Flask extensions
 mail = Mail(app)
-
-# Flask-Migrate setup
 migrate = Migrate(app, db)
 
 # Flask-Login setup
@@ -26,6 +24,7 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
+    """Load user by ID for Flask-Login."""
     return db.session.get(User, int(user_id))
 
 
@@ -37,6 +36,13 @@ with app.app_context():
 @app.route('/')
 @login_required
 def dashboard():
+    """
+        Display user dashboard with task statistics and analytics.
+        Shows:
+        - Weekly and monthly task completion rates
+        - Task category distribution
+        - Overall progress
+        """
     # Fetch all tasks for the current user
     tasks_query = Task.query.filter_by(user_id=current_user.id).all()
 
@@ -46,6 +52,7 @@ def dashboard():
     end_of_week = start_of_week + timedelta(days=6)
     start_of_month = today.replace(day=1)
 
+    # Calculate task completion statistics
     completed_this_week = sum(
         1 for task in tasks_query
         if task.completed and task.due_date and start_of_week <= datetime.strptime(task.due_date, '%Y-%m-%d').date()
@@ -77,6 +84,14 @@ def dashboard():
 @app.route('/tasks', methods=['GET', 'POST'])
 @login_required
 def tasks():
+    """
+        Display and manage user tasks with filtering and sorting capabilities.
+        Features:
+        - Search functionality
+        - Category filtering
+        - Multiple sorting options
+        - Overdue and upcoming task notifications
+        """
     search_query = request.args.get("search", "")
     sort_by = request.args.get("sort_by", None)
     category_filter = request.args.get("category", None)
@@ -102,7 +117,7 @@ def tasks():
 
     user_tasks = tasks_query.all()
 
-    # Clear duplicate logic
+    # Identify overdue and upcoming tasks
     today = datetime.now().date()
     overdue_tasks = [
         task for task in user_tasks
@@ -110,10 +125,11 @@ def tasks():
     ]
     upcoming_tasks = [
         task for task in user_tasks
-        if task.due_date and not task.completed and 0 <= (datetime.strptime(task.due_date, '%Y-%m-%d').date() - today).days <= 1
+        if task.due_date and not task.completed and 0 <= (
+                    datetime.strptime(task.due_date, '%Y-%m-%d').date() - today).days <= 1
     ]
 
-    # Ensure unique task IDs for rendering
+    # Remove duplicates from task lists
     overdue_tasks = list({task.id: task for task in overdue_tasks}.values())
     upcoming_tasks = list({task.id: task for task in upcoming_tasks}.values())
 
@@ -132,14 +148,25 @@ def tasks():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    """
+        Handle user registration with validation.
+        Checks for:
+        - Unique email
+        - Unique username
+        - Password requirements
+        """
     form = RegistrationForm()
     if form.validate_on_submit():
+        # Check if email already exists
         if User.query.filter_by(email=form.email.data).first():
             flash('Email already registered!', 'danger')
             return redirect(url_for('register'))
+        # Check if username already exists
         if User.query.filter_by(username=form.username.data).first():
             flash('Username already taken!', 'danger')
             return redirect(url_for('register'))
+
+        # Create new user with hashed password
         new_user = User(username=form.username.data, email=form.email.data)
         new_user.set_password(form.password.data)
         db.session.add(new_user)
@@ -151,6 +178,13 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """
+        Handle user authentication and login.
+        Features:
+        - Email/password validation
+        - Remember me functionality
+        - Redirect to next page after login
+        """
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
@@ -167,6 +201,7 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    """Handle user logout and session cleanup."""
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
@@ -175,6 +210,12 @@ def logout():
 @app.route('/delete_account', methods=['POST'])
 @login_required
 def delete_account():
+    """
+        Handle account deletion.
+        - Deletes all user tasks
+        - Removes user account
+        - Cleans up associated data
+        """
     user = current_user
     Task.query.filter_by(user_id=user.id).delete()  # Delete user's tasks
     db.session.delete(user)
@@ -185,6 +226,11 @@ def delete_account():
 
 @app.route("/forgot_password", methods=["GET", "POST"])
 def forgot_password():
+    """
+        Handle password reset requests.
+        - Verifies email existence
+        - Initiates password reset process
+        """
     form = ForgotPasswordForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
@@ -198,6 +244,11 @@ def forgot_password():
 
 @app.route("/reset_password/<int:user_id>", methods=["GET", "POST"])
 def reset_password(user_id):
+    """
+        Process password reset for verified users.
+        - Validates user existence
+        - Updates password with new hash
+        """
     form = ResetPasswordForm()
     user = User.query.get(user_id)
     if not user:
@@ -215,6 +266,11 @@ def reset_password(user_id):
 @app.route('/update/<int:task_id>', methods=['POST'])
 @login_required
 def update_task(task_id):
+    """
+        Toggle task completion status.
+        - Verifies task ownership
+        - Updates completion status
+        """
     task = db.session.get(Task, task_id)
     if task and task.user_id == current_user.id:
         task.completed = not task.completed
@@ -237,8 +293,14 @@ def delete_task(task_id):
 @app.route('/settings', methods=["GET", "POST"])
 @login_required
 def set_settings():
+    """
+        Handle user settings management.
+        Features:
+        - Username updates
+        - Theme preferences
+        - Other user preferences
+        """
     form = SettingsForm()
-
     if form.validate_on_submit():
         current_user.username = form.username.data
         db.session.commit()
@@ -252,6 +314,11 @@ def set_settings():
 @app.route('/toggle_theme')
 @login_required
 def toggle_theme():
+    """
+        Handle theme switching between light and dark modes.
+        - Stores preference in session
+        - Returns JSON response for AJAX updates
+        """
     current_theme = session.get('theme', 'light')
     new_theme = 'dark' if current_theme == 'light' else 'light'
     session['theme'] = new_theme
@@ -261,6 +328,15 @@ def toggle_theme():
 @app.route('/add_task', methods=['POST'])
 @login_required
 def add_task():
+    """
+        Handle task creation with support for both form and JSON requests.
+        Features:
+        - Field validation
+        - Category assignment
+        - Priority setting
+        - Due date handling
+        """
+    # Handle both JSON and form data
     if request.is_json:
         data = request.get_json()
         name = data.get('name')
@@ -273,6 +349,7 @@ def add_task():
         priority = request.form.get('priority')
         due_date = request.form.get('due_date')
 
+    # Validate required fields
     if not name or not category or not priority:
         if request.is_json:
             return jsonify({"error": "All fields are required except due date."}), 400
@@ -290,9 +367,9 @@ def add_task():
     db.session.add(task)
     db.session.commit()
 
+    # Return appropriate response based on request type
     if request.is_json:
         return jsonify({"message": "Task added successfully!"}), 200
-
     flash("Task added successfully!", "success")
     return redirect(url_for("tasks"))
 
@@ -300,6 +377,12 @@ def add_task():
 @app.route('/api/notifications', methods=['GET'])
 @login_required
 def get_notifications():
+    """
+        Fetch user notifications for overdue and upcoming tasks.
+        Returns:
+        - Overdue tasks list
+        - Upcoming tasks (due within 24 hours)
+        """
     # Fetch all tasks for the current user
     tasks = Task.query.filter_by(user_id=current_user.id).all()
 
@@ -324,6 +407,12 @@ def get_notifications():
 @app.route('/task/<int:task_id>/comment', methods=['POST'])
 @login_required
 def add_comment(task_id):
+    """
+        Add a comment to a specific task.
+        - Verifies task ownership
+        - Handles comment creation
+        - Provides feedback
+        """
     task = Task.query.get_or_404(task_id)
     if task.user_id != current_user.id:
         flash('You do not have permission to comment on this task.', 'danger')
@@ -337,9 +426,17 @@ def add_comment(task_id):
         flash('Comment added successfully!', 'success')
     return redirect(url_for('task_details', task_id=task_id))
 
+
 @app.route('/task/<int:task_id>')
 @login_required
 def task_details(task_id):
+    """
+        Display detailed view of a specific task.
+        Shows:
+        - Task details
+        - Comments
+        - Comment form
+        """
     task = Task.query.get_or_404(task_id)
     if task.user_id != current_user.id:
         flash('You do not have permission to view this task.', 'danger')
@@ -350,6 +447,7 @@ def task_details(task_id):
     return render_template('task_details.html', task=task, form=form, comments=comments)
 
 
+# Run the application
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)

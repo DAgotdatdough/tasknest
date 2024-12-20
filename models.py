@@ -5,8 +5,11 @@ from itsdangerous import URLSafeTimedSerializer as Serializer
 from config import Config
 from datetime import datetime
 
+# Initialize the database instance
 db = SQLAlchemy()
 
+
+# User model to represent users of the application
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
@@ -25,6 +28,7 @@ class User(UserMixin, db.Model):
         s = Serializer(Config.SECRET_KEY)
         return s.dumps({'user_id': self.id})
 
+    # Static method to verify the reset token
     @staticmethod
     def verify_reset_token(token, expires_sec=1800):
         """Verify a reset token and return the associated user if valid."""
@@ -35,6 +39,8 @@ class User(UserMixin, db.Model):
             return None
         return User.query.get(user_id)
 
+
+# Task model to represent tasks created by users
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -45,6 +51,8 @@ class Task(db.Model):
     completed = db.Column(db.Boolean, default=False)
     comments = db.relationship('Comment', backref='task', lazy=True)
 
+
+# Comment model to represent comments associated with tasks
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
